@@ -30,10 +30,6 @@ class GAN(object):
             self.z_dim = z_dim         # dimension of noise-vector
             self.c_dim = 1
 
-            # WGAN_GP parameter
-            self.lambd = 0.25       # The higher value, the more stable, but the slower convergence
-            self.disc_iters = 5     # The number of critic iterations for one-step of generator
-
             # train
             self.learning_rate = 0.0002
             self.beta1 = 0.5
@@ -57,12 +53,8 @@ class GAN(object):
             self.z_dim = z_dim  # dimension of noise-vector (paper?)
             self.c_dim = 3  # color dimension (paper?)
 
-            # WGAN_GP parameter
-            self.lambd = 0.25       # The higher value, the more stable, but the slower convergence
-            self.disc_iters = 5     # The number of critic iterations for one-step of generator
-
             # train
-            self.learning_rate_D = 1e-4#1e-3
+            self.learning_rate_D = 1e-3
             self.learning_rate_G = 1e-4
             self.beta1 = 0.5
 
@@ -71,6 +63,8 @@ class GAN(object):
 
             # load cifar10
             self.data_X, self.data_y = load_cifar10(self.dataset_name)
+            print(self.data_X)
+            print(self.data_y)
             print("Shape of cifar10 X: {}".format(self.data_X.shape))
             print("Shape of cifar10 Y: {}".format(self.data_y.shape))
 
@@ -86,10 +80,10 @@ class GAN(object):
         with tf.variable_scope("discriminator", reuse=reuse):
 
             if self.dataset_name == 'cifar10':
-                net = lrelu(conv2d(x, 64, 4, 4, 2, 2, name='d_conv1'))
-                net = lrelu(conv2d(net, 128, 4, 4, 2, 2, name='d_conv2'))
-                net = lrelu(conv2d(net, 256, 4, 4, 2, 2, name='d_conv3'))
-                net = lrelu(conv2d(net, 512, 4, 4, 2, 2, name='d_conv4'))
+                net = lrelu(conv2d(x, 64, 5, 5, 2, 2, name='d_conv1'))
+                net = lrelu(bn(conv2d(net, 128, 5, 5, 2, 2, name='d_conv2'), is_training=is_training, scope='d_bn2'))
+                net = lrelu(bn(conv2d(net, 256, 5, 5, 2, 2, name='d_conv3'), is_training=is_training, scope='d_bn3'))
+                net = lrelu(bn(conv2d(net, 512, 5, 5, 2, 2, name='d_conv4'), is_training=is_training, scope='d_bn4'))
                 net = tf.reshape(net, [self.batch_size, -1])
                 out_logit = linear(net, 1, scope='d_fc5')
                 out = tf.nn.sigmoid(out_logit)
@@ -106,19 +100,23 @@ class GAN(object):
             return out, out_logit, net
 
     def generator(self, z, is_training=True, reuse=False):
-        # Architecture: modified https://arxiv.org/pdf/1511.06434.pdf 
+        # Network Architecture is exactly same as in infoGAN (https://arxiv.org/abs/1606.03657)
+        # Architecture : FC1024_BR-FC7x7x128_BR-(64)4dc2s_BR-(1)4dc2s_S
         with tf.variable_scope("generator", reuse=reuse):
 
             if self.dataset_name == 'cifar10':
+                h_size = 32
+                h_size_2 = 16
+                h_size_4 = 8
+                h_size_8 = 4
+                h_size_16 = 2
 
-                net = linear(z, 512*4*4, scope='g_fc1')
-                net = tf.nn.relu(bn(tf.reshape(net, [self.batch_size, 4, 4, 512]),is_training=is_training, scope='g_bn1'))
-                net = tf.nn.relu(bn(deconv2d(net, [self.batch_size, 8, 8, 256], 4, 4, 2, 2, name='g_dc2'), is_training=is_training, scope='g_bn2'))
-                net = tf.nn.relu(bn(deconv2d(net, [self.batch_size, 16, 16, 128], 4, 4, 2, 2, name='g_dc3'), is_training=is_training, scope='g_bn3'))
-#                net = tf.nn.relu(bn(deconv2d(net, [self.batch_size, 32, 32, 64], 4, 4, 2, 2, name='g_dc4'),is_training=is_training, scope='g_bn4'))
-                out = tf.nn.tanh(deconv2d(net, [self.batch_size, self.output_height, self.output_width, self.c_dim], 4, 4, 2, 2, name='g_dc5'))
-#                net = tf.nn.relu(bn(deconv2d(net, [self.batch_size, 32, 32, 64], 4, 4, 2, 2, name='g_dc4'),is_training=is_training, scope='g_bn4'))
-#                out = tf.nn.tanh(deconv2d(net, [self.batch_size, 64, 64, self.c_dim], 4, 4, 2, 2, name='g_dc5'))
+                net = linear(z, 512*h_size_16*h_size_16, scope='g_fc1')
+                net = tf.nn.relu(bn(tf.reshape(net, [self.batch_size, h_size_16, h_size_16, 512]),is_training=is_training, scope='g_bn1'))
+                net = tf.nn.relu(bn(deconv2d(net, [self.batch_size, h_size_8, h_size_8, 256], 5, 5, 2, 2, name='g_dc2'), is_training=is_training, scope='g_bn2'))
+                net = tf.nn.relu(bn(deconv2d(net, [self.batch_size, h_size_4, h_size_4, 128], 5, 5, 2, 2, name='g_dc3'), is_training=is_training, scope='g_bn3'))
+                net = tf.nn.relu(bn(deconv2d(net, [self.batch_size, h_size_2, h_size_2, 64], 5, 5, 2, 2, name='g_dc4'),is_training=is_training, scope='g_bn4'))
+                out = tf.nn.tanh(deconv2d(net, [self.batch_size, self.output_height, self.output_width, self.c_dim], 5, 5, 2, 2, name='g_dc5'))
 
             else:  # mnist fashion
 
@@ -152,25 +150,16 @@ class GAN(object):
         D_fake, D_fake_logits, _ = self.discriminator(G, is_training=True, reuse=True)
 
         # get loss for discriminator
-
-        d_loss_real = - tf.reduce_mean(D_real_logits)
-        d_loss_fake = tf.reduce_mean(D_fake_logits)
+        d_loss_real = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real_logits, labels=tf.ones_like(D_real)))
+        d_loss_fake = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.zeros_like(D_fake)))
 
         self.d_loss = d_loss_real + d_loss_fake
 
         # get loss for generator
-        self.g_loss = - d_loss_fake
-
-        """ Gradient Penalty """
-        # This is borrowed from https://github.com/kodalinaveen3/DRAGAN/blob/master/DRAGAN.ipynb
-        alpha = tf.random_uniform(shape=self.inputs.get_shape(), minval=0.,maxval=1.)
-        differences = G - self.inputs # This is different from MAGAN
-        interpolates = self.inputs + (alpha * differences)
-        _,D_inter,_=self.discriminator(interpolates, is_training=True, reuse=True)
-        gradients = tf.gradients(D_inter, [interpolates])[0]
-        slopes = tf.sqrt(tf.reduce_sum(tf.square(gradients), reduction_indices=[1]))
-        gradient_penalty = tf.reduce_mean((slopes - 1.) ** 2)
-        self.d_loss += self.lambd * gradient_penalty
+        self.g_loss = tf.reduce_mean(
+            tf.nn.sigmoid_cross_entropy_with_logits(logits=D_fake_logits, labels=tf.ones_like(D_fake)))
 
         """ Training """
         # divide trainable variables into a group for D and a group for G
@@ -234,20 +223,17 @@ class GAN(object):
                 batch_images = self.data_X[idx*self.batch_size:(idx+1)*self.batch_size]
                 batch_z = np.random.uniform(-1, 1, [self.batch_size, self.z_dim]).astype(np.float32)
 
-                # update D network
                 _, summary_str, d_loss = self.sess.run([self.d_optim, self.d_sum, self.d_loss],
-                                                   feed_dict={self.inputs: batch_images, self.z: batch_z})
+                                               feed_dict={self.inputs: batch_images, self.z: batch_z})
                 self.writer.add_summary(summary_str, counter)
 
                 # update G network
-                if (counter-1) % self.disc_iters == 0:
-                    batch_z = np.random.uniform(-1, 1, [self.batch_size, self.z_dim]).astype(np.float32)
-                    _, summary_str, g_loss = self.sess.run([self.g_optim, self.g_sum, self.g_loss], feed_dict={self.z: batch_z})
-                    self.writer.add_summary(summary_str, counter)
+                _, summary_str, g_loss = self.sess.run([self.g_optim, self.g_sum, self.g_loss], feed_dict={self.z: batch_z})
 
+                self.writer.add_summary(summary_str, counter)
 
-                counter += 1
                 # display training status
+                counter += 1
                 print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
                       % (epoch, idx, self.num_batches, time.time() - start_time, d_loss, g_loss))
 

@@ -55,7 +55,6 @@ def load_cifar10(dataset, num_training=49000, num_validation=1000, num_test=1000
     y_val = one_hot(y_val, 10)
     y_test = one_hot(y_test, 10)
 
-
     seed = 547
     np.random.seed(seed)
     np.random.shuffle(X_train)
@@ -74,13 +73,6 @@ def load_cifar10(dataset, num_training=49000, num_validation=1000, num_test=1000
 #    X_test /= std
 
     return np.concatenate((X_train, X_val, X_test)), np.concatenate((y_train, y_val, y_test))
-
-#    return {
-#        'X_train': X_train, 'y_train': y_train,
-#        'X_val': X_val, 'y_val': y_val,
-#        'X_test': X_test, 'y_test': y_test,
-#        'mean': mean_image, 'std': std
-#    }
 
 def load_CIFAR_batch(filename):
     ''' load single batch of cifar '''
@@ -164,6 +156,9 @@ def get_image(image_path, input_height, input_width, resize_height=64, resize_wi
 def save_images(images, size, image_path):
     return imsave(inverse_transform(images), size, image_path)
 
+def save_images_2(images, size, image_path):
+    return imsave(images, size, image_path)
+
 def imread(path, grayscale = False):
     if (grayscale):
         return scipy.misc.imread(path, flatten = True).astype(np.float)
@@ -240,3 +235,33 @@ def discrete_cmap(N, base_cmap=None):
     color_list = base(np.linspace(0, 1, N))
     cmap_name = base.name + str(N)
     return base.from_list(cmap_name, color_list, N)
+
+def rescale(images):
+    # rescale from 0-1 to 0-255
+    batch_img_list = []
+    for idx in range(64):
+        vMin = np.amin(images[idx])
+        vMax = np.amax(images[idx])
+        img_arr = images[idx].reshape(32*32*3,1) # flatten
+        for i, v in enumerate(img_arr):
+            img_arr[i] = (v-vMin)/(vMax-vMin)
+        img_arr = img_arr.reshape(32,32,3) # M*N*3
+        batch_img_list.append(img_arr)
+    return np.array(batch_img_list)
+
+def save_matplot_img(images, size, image_path):
+    # value must set between 0. with 1.
+    for idx in range(64):
+        vMin = np.amin(images[idx])
+        vMax = np.amax(images[idx])
+        img_arr = images[idx].reshape(32*32*3,1) # flatten
+        for i, v in enumerate(img_arr):
+            img_arr[i] = (v-vMin)/(vMax-vMin)
+        img_arr = img_arr.reshape(32,32,3) # M*N*3
+
+        # matplot display
+        plt.subplot(8,8,idx+1),plt.imshow(img_arr, interpolation='nearest')
+        #plt.title("pred.:{}".format(np.argmax(self.data_y[0]),fontsize=10))
+        plt.axis("off")
+
+    plt.savefig(image_path)
