@@ -1,9 +1,12 @@
 #-*- coding: utf-8 -*-
 from __future__ import division
+import operator
 import os
 import time
 import tensorflow as tf
 import numpy as np
+import random
+import re
 import scipy.misc
 
 from ops import *
@@ -28,6 +31,11 @@ class GAN(object):
         self.z_dim = z_dim  # dimension of noise-vector
         self.c_dim = 3  # color dimension
 
+        # checkpoint dir
+        self.checkpoint_dir = 'checkpoint'
+        if not os.path.exists(self.checkpoint_dir):
+            os.makedirs(self.checkpoint_dir)
+
         # train
         self.learning_rate_D = tf.get_variable('learning_rate_D'.format(worker_idx), initializer=tf.constant(1e-4))
         self.learning_rate_G = tf.get_variable('learning_rate_G'.format(worker_idx), initializer=tf.constant(1e-4))
@@ -46,15 +54,15 @@ class GAN(object):
         self.num_batches = len(self.data_X) // self.batch_size
 
         # graph inputs for visualize training results
-        self.sample_z = np.random.uniform(-1, 1, size=(self.batch_size , self.z_dim))
-
+        np.random.seed(1)
+        self.sample_z = np.random.uniform(-1, 1, size=(self.batch_size , self.z_dim)) 
         # load pretrained inception network (code from tensorflow / openAI)
         self.init_inception()
 
     def discriminator(self, x, is_training=True, reuse=False):
         # Network Architecture is exactly same as in infoGAN (https://arxiv.org/abs/1606.03657)
         # Architecture : (64)4c2s-(128)4c2s_BL-FC1024_BL-FC1_S
-        with tf.variable_scope("discriminator".format(self.worker_idx), reuse=reuse):
+        with tf.variable_scope("discriminator", reuse=reuse):
 
             net = lrelu(conv2d(x, 64, 5, 5, 2, 2, name='d_conv1'))
             net = lrelu(bn(conv2d(net, 128, 5, 5, 2, 2, name='d_conv2'), is_training=is_training, scope='d_bn2'))
@@ -69,7 +77,7 @@ class GAN(object):
     def generator(self, z, is_training=True, reuse=False):
         # Network Architecture is exactly same as in infoGAN (https://arxiv.org/abs/1606.03657)
         # Architecture : FC1024_BR-FC7x7x128_BR-(64)4dc2s_BR-(1)4dc2s_S
-        with tf.variable_scope("generator".format(self.worker_idx), reuse=reuse):
+        with tf.variable_scope("generator", reuse=reuse):
 
             h_size = 32
             h_size_2 = 16
@@ -175,10 +183,95 @@ class GAN(object):
         manifold_w = int(np.floor(np.sqrt(tot_num_samples)))
         images = samples[:manifold_h * manifold_w, :, :, :]
         images = scipy.misc.bytescale(rescale(images))
-
         images = list(images)
-        np.save('image', images)
-        print(self.get_inception_score(images))
+
+        mean, std = self.get_inception_score(images)
+        return mean, self.sample_z
+
+    def exploit(self, worker_idx, score, strategy="TS"):
+        """exploit using Truncation Selection (TS) or Binary Tournament (BS)"""
+        if strategy == "TS":
+            # rank all agents, if agent is in the bottom 20% of the population
+            # sample another agent uniformly from the top 20% of the population
+            # copying its weights and hyperparameters
+            num_workers = len(os.listdir(self.checkpoint_dir)) + 1 # for p
+            percentile_20 = int(np.ceil(num_workers * 0.2))
+
+            p = ('current', score) 
+            ranked_list = self.rank_workers(p)
+
+            # (worker, score)
+            top_20 = ranked_list[-percentile_20:]
+            bottom_20 = ranked_list[:percentile_20]
+            
+            # worker
+            top_20 = [i[0] for i in top_20]
+            print("top_20 is {}".format(top_20))
+            bottom_20 = [i[0] for i in bottom_20]
+            print("bottom_20 is {}".format(bottom_20))
+
+            if 'current' in bottom_20:
+                exploit_idx = random.choice(top_20)
+                print("{} randomlly picked from {}".format(exploit_idx, top_20))
+
+                if exploit_idx != 'current':
+                    print("Worker {} (EXPLOIT): inheriting Worker {}'s weights/hyperparams".format(worker_idx, exploit_idx))
+                    self.load(exploit_idx) 
+                else:
+                    print("Worker {} (EXPLOIT): current worker was chosen, no change".format(worker_idx))
+            else:
+                print("Worker {} (EXPLOIT): is not in the bottom 20, no change".format(worker_idx))
+ 
+        elif strategy == "BS":
+            raise NotImplementedError
+        else:
+            raise ValueError
+
+    def rank_workers(self, p):
+        """exploit takes (h,w,p,P)
+        the p is not in P!
+        """
+
+        num_workers = len(os.listdir(self.checkpoint_dir))
+        ranked_dict = {}
+
+        regex = re.compile('(\d+)_(\d*\.?\d*)')
+        for i in range(num_workers):
+            cpkt_dir = os.path.join(self.checkpoint_dir, str(i))
+            if not os.path.exists(cpkt_dir):
+                os.makedirs(cpkt_dir)
+            for f in os.listdir(cpkt_dir):
+                m = regex.match(f)
+                if m:
+                    ranked_dict[i] = float(m.group(2))
+        ranked_dict[p[0]] = p[1]
+
+        # technically a list of tuples
+        print(ranked_dict)
+        ranked_list = sorted(ranked_dict.items(), key=operator.itemgetter(1))
+        return ranked_list
+        
+
+    def save(self, worker_idx, score):
+
+        worker_dir = os.path.join(self.checkpoint_dir, str(worker_idx))
+        if not os.path.exists(worker_dir):
+            os.makedirs(worker_dir)
+
+        name = '{}_{}.model'.format(worker_idx, score)
+        self.saver.save(self.get_session(), os.path.join(worker_dir, name))
+
+    def load(self, worker_idx):
+        
+        worker_dir = os.path.join(self.checkpoint_dir, str(worker_idx))
+        ckpt = tf.train.get_checkpoint_state(worker_dir)
+        if ckpt and ckpt.model_checkpoint_path:
+            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+            self.saver.restore(self.mon_sess, os.path.join(worker_dir, ckpt_name))
+            print("Successfully loaded checkpoint from Worker {}!".format(worker_idx))
+        else:
+            print("Could not find checkpoint")
+
 
     def init_inception(self):
         return init_inception(self)
@@ -186,4 +279,12 @@ class GAN(object):
     def get_inception_score(self, images):
         return get_inception_score(self, images)
 
-
+    def get_session(self):
+        """
+        MonitoredTrainingSession only supports hooks and not custom saver objects
+        The control for these hooks is before_run and after_run, which is not enough control (https://github.com/tensorflow/tensorflow/issues/8425)
+        """
+        session = self.mon_sess
+        while type(session).__name__ != 'Session':
+            session = session._sess
+        return session

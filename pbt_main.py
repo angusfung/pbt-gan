@@ -37,18 +37,69 @@ def main(_):
             # we don't define on the ps because we don't share weights
             gan.build_model()
 
+            # DEBUG CODE
+#            reset = tf.global_variables_initializer()
+#            graph = tf.get_default_graph()
+#            weights = graph.get_tensor_by_name('discriminator/d_conv1/biases:0')
+
+            gan.saver = tf.train.Saver()
+
         with tf.train.MonitoredTrainingSession(master=server.target,
                                             is_chief=True) as gan.mon_sess:
 
             for epoch in range(gan.epochs):
                 for idx in range(gan.num_batches):
-                    gan.step(idx, epoch)
-                    gan.eval()
 
-#                    print(image)
+                    gan.step(idx, epoch)
+
+                    # inception score takes ~5s, so there is a tradeoff
+                    if idx % 5 == 0:
+                        inception_score, _ = gan.eval()
+                        print("Worker {} with Inception Score {}".format(FLAGS.task_index, inception_score))
+
+                    if idx % 5 == 0:
+                        gan.exploit(worker_idx=FLAGS.task_index, score=inception_score)
+                        inception_score, _ = gan.eval()
+                        print("reloaded inception score")
+                        print(inception_score)
+
+                    if idx % 5 == 0:
+                        # update checkpoint (ideally checkpoint every idx)
+                        gan.save(worker_idx=FLAGS.task_index, score=inception_score)
+
+                    # DEBUG CODE     
+#                    print("being testing")
+#                    print("current weights")
+#                    _weights= gan.mon_sess.run(weights)
+#                    print(_weights)#[0][0][0][0])
+#
+#                    print("saved them")
+#                    score, _ = gan.eval()
+#                    gan.save(worker_idx=FLAGS.task_index, score=score)
+#                    print(score)
+#
+#                    print("reloading weights, this this even do anything?")
+#                    gan.load(worker_idx=FLAGS.task_index)
+#                    _weights = gan.mon_sess.run(weights)
+#                    print(_weights)#[0][0][0][0])
+#
+#                    print("wiping variables and reloading")
+#                    gan.mon_sess.run(reset)
+#                    _weights = gan.mon_sess.run(weights)
+#                    print(_weights)#[0][0][0][0])
+#
+#                    score, _ = gan.eval()
+#                    print(score)
+#
+#                    gan.load(worker_idx=FLAGS.task_index)
+#                    _weights = gan.mon_sess.run(weights)
+#                    print(_weights)#[0][0][0][0])
+#
+#                    score, _ = gan.eval()
+#
+#                    print(score)
 #                    import sys
 #                    sys.exit()
-            
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
