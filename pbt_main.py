@@ -1,10 +1,13 @@
 import argparse
+import os
+import pickle
 import numpy as np
 import sys
 import time
 import tensorflow as tf
 
 from gan_class import *
+from utils import *
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -37,14 +40,25 @@ def main(_):
             # we don't define on the ps because we don't share weights
             gan.build_model()
 
+            # use filesystem for population
             gan.saver = tf.train.Saver(max_to_keep=1)
+
+            # log each worker separately for tensorboard
+            gan.writer = tf.summary.FileWriter(os.path.join(gan.log_dir, str(FLAGS.task_index)), tf.get_default_graph()) 
 
         with tf.train.MonitoredTrainingSession(master=server.target,
                                             is_chief=True) as gan.mon_sess:
 
             ready_freq = 100
+            im_save_freq = 100
+
+            # save inception scores for plotting
+            inc_dict = {}
+
 
             for epoch in range(gan.epochs):
+                inc_dict[epoch] = {}
+
                 for idx in range(gan.num_batches):
 
                     gan.step(idx, epoch)
@@ -52,18 +66,26 @@ def main(_):
                     # inception score takes ~5s, so there is a tradeoff
                     if idx % ready_freq == 0:
                         inception_score, _ = gan.eval()
+                        inc_dict[epoch][idx] = inception_score
                         print("Worker {} with Inception Score {}".format(FLAGS.task_index, inception_score))
 
                         do_explore = gan.exploit(worker_idx=FLAGS.task_index, score=inception_score)
 
                         if do_explore:
-                            gan.explore()
+                            gan.explore(FLAGS.task_index)
                             inception_score, _ = gan.eval()
                             print("Worker {} with Inception Score {}".format(FLAGS.task_index, inception_score))
 
-                    if idx % 5 == 0:
+                    if idx % ready_freq == 0:
                         # update checkpoint (ideally checkpoint every idx)
                         gan.save(worker_idx=FLAGS.task_index, score=inception_score)
+
+                    if idx % im_save_freq == 0:
+                        gan.save_image(FLAGS.task_index, epoch, idx)
+                
+                # update every epoch
+                with open('inception.pkl', 'wb') as handle:
+                    pickle.dump(inc_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -33,6 +33,8 @@ class GAN(object):
 
         # checkpoint dir
         self.checkpoint_dir = 'checkpoint'
+        self.log_dir = 'logs'
+
         if not os.path.exists(self.checkpoint_dir):
             os.makedirs(self.checkpoint_dir)
 
@@ -148,12 +150,16 @@ class GAN(object):
         d_loss_fake_sum = tf.summary.scalar("d_loss_fake", d_loss_fake)
         d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
         g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
+
         d_lr_sum = tf.summary.scalar("d_learning_rate", self.learning_rate_D)
-        g_lr_sum = tf.summary.scalar("g_learning_rate", self.learning_rate_G)
+        g_lr_sum = tf.summary.scalar("g_learning_rate", self.learning_rate_G) 
+        d_log_lr_sum = tf.summary.scalar("d_log_learning_rate", tf.log(self.learning_rate_D))
+        g_log_lr_sum = tf.summary.scalar("g_log_learning_rate", tf.log(self.learning_rate_G))
+
 
         # final summary operations
-        self.g_sum = tf.summary.merge([d_loss_fake_sum, g_loss_sum, g_lr_sum])
-        self.d_sum = tf.summary.merge([d_loss_real_sum, d_loss_sum, d_lr_sum])
+        self.g_sum = tf.summary.merge([d_loss_fake_sum, g_loss_sum, g_lr_sum, g_log_lr_sum])
+        self.d_sum = tf.summary.merge([d_loss_real_sum, d_loss_sum, d_lr_sum, d_log_lr_sum])
 
         # define explore graph
         coin_flip_D = tf.cast(tf.random_uniform(shape=[], minval=0, maxval=1+1, dtype=tf.int32), tf.float32)
@@ -165,6 +171,7 @@ class GAN(object):
     def step(self, idx, epoch):
 
         start_time = time.time()
+        counter = epoch*self.num_batches + idx
 
         # number of updates of D for a G
         update_num_D = 1 #5
@@ -173,12 +180,14 @@ class GAN(object):
             batch_images = self.data_X[idx*self.batch_size:(idx+1)*self.batch_size]
             batch_z = np.random.uniform(-1, 1, [self.batch_size, self.z_dim]).astype(np.float32)
 
+            # update D network
             _, summary_str, d_loss = self.mon_sess.run([self.d_optim, self.d_sum, self.d_loss],
                                            feed_dict={self.inputs: batch_images, self.z: batch_z})
+            self.writer.add_summary(summary_str, counter)
 
         # update G network
         _, summary_str, g_loss = self.mon_sess.run([self.g_optim, self.g_sum, self.g_loss], feed_dict={self.z: batch_z})
-
+        self.writer.add_summary(summary_str, counter)
 
         # display training status
         print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
@@ -238,7 +247,7 @@ class GAN(object):
 
         return do_explore
 
-    def explore(self):
+    def explore(self, worker_idx):
         self.mon_sess.run([self.explore_learning_D, self.explore_learning_G]) 
         print("Worker {} (EXPLORE)".format(worker_idx))
 
@@ -286,6 +295,16 @@ class GAN(object):
             print("Successfully loaded checkpoint from Worker {}!".format(worker_idx))
         else:
             print("Could not find checkpoint")
+
+    def save_image(self, worker_idx, epoch, idx):
+
+        samples = self.mon_sess.run(self.fake_images, feed_dict={self.z: self.sample_z})
+        tot_num_samples = min(self.sample_num, self.batch_size)
+        manifold_h = int(np.floor(np.sqrt(tot_num_samples)))
+        manifold_w = int(np.floor(np.sqrt(tot_num_samples)))
+        save_images(samples[:manifold_h * manifold_w, :, :, :], [manifold_h, manifold_w],
+                    './' + check_folder('results/{}'.format(worker_idx)) + '/' + '_train_{:02d}_{:04d}.png'.format(
+                        epoch, idx))
 
 
     def init_inception(self):
