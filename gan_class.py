@@ -37,8 +37,8 @@ class GAN(object):
             os.makedirs(self.checkpoint_dir)
 
         # train
-        self.learning_rate_D = tf.get_variable('learning_rate_D'.format(worker_idx), initializer=tf.constant(1e-4))
-        self.learning_rate_G = tf.get_variable('learning_rate_G'.format(worker_idx), initializer=tf.constant(1e-4))
+        self.learning_rate_D = tf.get_variable('learning_rate_D', initializer=tf.constant(1e-4))
+        self.learning_rate_G = tf.get_variable('learning_rate_G', initializer=tf.constant(1e-4))
 
         self.beta1 = 0.5
 
@@ -56,6 +56,7 @@ class GAN(object):
         # graph inputs for visualize training results
         np.random.seed(1)
         self.sample_z = np.random.uniform(-1, 1, size=(self.batch_size , self.z_dim)) 
+
         # load pretrained inception network (code from tensorflow / openAI)
         self.init_inception()
 
@@ -147,10 +148,19 @@ class GAN(object):
         d_loss_fake_sum = tf.summary.scalar("d_loss_fake", d_loss_fake)
         d_loss_sum = tf.summary.scalar("d_loss", self.d_loss)
         g_loss_sum = tf.summary.scalar("g_loss", self.g_loss)
+        d_lr_sum = tf.summary.scalar("d_learning_rate", self.learning_rate_D)
+        g_lr_sum = tf.summary.scalar("g_learning_rate", self.learning_rate_G)
 
         # final summary operations
-        self.g_sum = tf.summary.merge([d_loss_fake_sum, g_loss_sum])
-        self.d_sum = tf.summary.merge([d_loss_real_sum, d_loss_sum])
+        self.g_sum = tf.summary.merge([d_loss_fake_sum, g_loss_sum, g_lr_sum])
+        self.d_sum = tf.summary.merge([d_loss_real_sum, d_loss_sum, d_lr_sum])
+
+        # define explore graph
+        coin_flip_D = tf.cast(tf.random_uniform(shape=[], minval=0, maxval=1+1, dtype=tf.int32), tf.float32)
+        coin_flip_G = tf.cast(tf.random_uniform(shape=[], minval=0, maxval=1+1, dtype=tf.int32), tf.float32)
+
+        self.explore_learning_D = tf.assign(self.learning_rate_D, 2*self.learning_rate_D*coin_flip_D + 0.5*self.learning_rate_D*(1-coin_flip_D))  
+        self.explore_learning_G = tf.assign(self.learning_rate_G, 2*self.learning_rate_G*coin_flip_G + 0.5*self.learning_rate_G*(1-coin_flip_G))  
 
     def step(self, idx, epoch):
 
@@ -186,10 +196,13 @@ class GAN(object):
         images = list(images)
 
         mean, std = self.get_inception_score(images)
-        return mean, self.sample_z
+        return mean, std
 
     def exploit(self, worker_idx, score, strategy="TS"):
         """exploit using Truncation Selection (TS) or Binary Tournament (BS)"""
+
+        do_explore = False
+
         if strategy == "TS":
             # rank all agents, if agent is in the bottom 20% of the population
             # sample another agent uniformly from the top 20% of the population
@@ -206,26 +219,28 @@ class GAN(object):
             
             # worker
             top_20 = [i[0] for i in top_20]
-            print("top_20 is {}".format(top_20))
             bottom_20 = [i[0] for i in bottom_20]
-            print("bottom_20 is {}".format(bottom_20))
 
             if 'current' in bottom_20:
                 exploit_idx = random.choice(top_20)
-                print("{} randomlly picked from {}".format(exploit_idx, top_20))
 
                 if exploit_idx != 'current':
+                    do_explore = True
                     print("Worker {} (EXPLOIT): inheriting Worker {}'s weights/hyperparams".format(worker_idx, exploit_idx))
                     self.load(exploit_idx) 
-                else:
-                    print("Worker {} (EXPLOIT): current worker was chosen, no change".format(worker_idx))
             else:
-                print("Worker {} (EXPLOIT): is not in the bottom 20, no change".format(worker_idx))
+                print("Worker {} (EXPLOIT): is not in the bottom 20, no action".format(worker_idx))
  
         elif strategy == "BS":
             raise NotImplementedError
         else:
             raise ValueError
+
+        return do_explore
+
+    def explore(self):
+        self.mon_sess.run([self.explore_learning_D, self.explore_learning_G]) 
+        print("Worker {} (EXPLORE)".format(worker_idx))
 
     def rank_workers(self, p):
         """exploit takes (h,w,p,P)
