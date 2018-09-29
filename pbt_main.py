@@ -55,11 +55,14 @@ def main(_):
             # save inception scores for plotting
             inc_dict = {}
 
+            # restore session
+            start_epoch, start_idx = gan.load_saved_session()
 
-            for epoch in range(gan.epochs):
+            for epoch in range(start_epoch, gan.epochs):
                 inc_dict[epoch] = {}
 
-                for idx in range(gan.num_batches):
+                for idx in range(start_idx, gan.num_batches):
+                    start_idx = 0 # so the next loop doesn't start from here
 
                     gan.step(idx, epoch)
 
@@ -84,8 +87,8 @@ def main(_):
                         gan.save_image(FLAGS.task_index, epoch, idx)
                 
                 # update every epoch
-                with open('inception.pkl', 'wb') as handle:
-                    pickle.dump(inc_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                with open('inception_{}.pkl'.format(gan.worker_idx), 'wb') as handle:
+                    pickle.dump(inc_dict, handle)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

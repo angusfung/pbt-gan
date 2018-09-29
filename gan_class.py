@@ -171,10 +171,10 @@ class GAN(object):
     def step(self, idx, epoch):
 
         start_time = time.time()
-        counter = epoch*self.num_batches + idx
+        self.counter = epoch*self.num_batches + idx
 
         # number of updates of D for a G
-        update_num_D = 1 #5
+        update_num_D = 2 #5
         
         for i in range(update_num_D):
             batch_images = self.data_X[idx*self.batch_size:(idx+1)*self.batch_size]
@@ -183,11 +183,11 @@ class GAN(object):
             # update D network
             _, summary_str, d_loss = self.mon_sess.run([self.d_optim, self.d_sum, self.d_loss],
                                            feed_dict={self.inputs: batch_images, self.z: batch_z})
-            self.writer.add_summary(summary_str, counter)
+            self.writer.add_summary(summary_str, self.counter)
 
         # update G network
         _, summary_str, g_loss = self.mon_sess.run([self.g_optim, self.g_sum, self.g_loss], feed_dict={self.z: batch_z})
-        self.writer.add_summary(summary_str, counter)
+        self.writer.add_summary(summary_str, self.counter)
 
         # display training status
         print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
@@ -282,7 +282,7 @@ class GAN(object):
         if not os.path.exists(worker_dir):
             os.makedirs(worker_dir)
 
-        name = '{}_{}.model'.format(worker_idx, score)
+        name = '{}_{}_{}.model'.format(worker_idx, score, self.counter)
         self.saver.save(self.get_session(), os.path.join(worker_dir, name))
 
     def load(self, worker_idx):
@@ -295,6 +295,32 @@ class GAN(object):
             print("Successfully loaded checkpoint from Worker {}!".format(worker_idx))
         else:
             print("Could not find checkpoint")
+
+    def load_saved_session(self):
+        print("Loading Initial Checkpoints...") 
+        epoch = 0
+        idx = 0
+
+        worker_dir = os.path.join(self.checkpoint_dir, str(self.worker_idx))
+        ckpt = tf.train.get_checkpoint_state(worker_dir)
+
+        if ckpt and ckpt.model_checkpoint_path:
+            ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+            self.saver.restore(self.mon_sess, os.path.join(worker_dir, ckpt_name))
+
+
+            regex = re.compile('(\d+)_(\d*\.?\d*)_(\d+)')
+            counter = int(regex.match(ckpt_name).group(3))
+
+            epoch = counter // self.num_batches
+            idx = counter - epoch * self.num_batches
+
+
+            print("Successfully loaded checkpoint from epoch {} idx {}".format(epoch, idx))
+        else:
+            print("Could not find checkpoint")
+
+        return epoch, idx
 
     def save_image(self, worker_idx, epoch, idx):
 
