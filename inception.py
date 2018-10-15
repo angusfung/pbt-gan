@@ -27,7 +27,7 @@ def get_inception_score(self, images, splits=10):
     for img in images:
         img = img.astype(np.float32)
         inps.append(np.expand_dims(img, 0))
-    bs = 1
+    bs = 1 # 100 uses much memory
 
     preds = []
     n_batches = int(math.ceil(float(len(inps)) / float(bs)))
@@ -71,7 +71,9 @@ def init_inception(self):
         graph_def.ParseFromString(f.read())
         _ = tf.import_graph_def(graph_def, name='')
     # Works with an arbitrary minibatch size.
-    with tf.Session() as sess:
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth=True
+    with tf.Session(config=config) as sess:
         pool3 = sess.graph.get_tensor_by_name('pool_3:0')
         ops = pool3.graph.get_operations()
         for op_idx, op in enumerate(ops):
@@ -84,7 +86,9 @@ def init_inception(self):
                         new_shape.append(None)
                     else:
                         new_shape.append(s)
-                o.set_shape(tf.TensorShape(new_shape))
+                o._shape = tf.TensorShape(new_shape)
+#                o.set_shape(tf.TensorShape(new_shape))
         w = sess.graph.get_operation_by_name("softmax/logits/MatMul").inputs[1]
+#        logits = tf.matmul(tf.squeeze(pool3), w)
         logits = tf.matmul(tf.squeeze(pool3, [1, 2]), w)
         self.softmax = tf.nn.softmax(logits)
