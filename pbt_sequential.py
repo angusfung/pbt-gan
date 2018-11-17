@@ -35,7 +35,7 @@ def main(_):
     lib.print_model_settings(locals().copy())
     gpu_options = tf.GPUOptions(allow_growth=True)
 
-    num_workers = 5
+    num_workers = 2
     graph_list = []
     sess_list = []
     gan_list = []
@@ -103,23 +103,24 @@ def main(_):
                     else:
                         gan.step(idx, epoch, verbose=False)
 
-                    # inception score takes ~5s, so there is a tradeoff
-                    if counter % ready_freq == 0:
-                        inception_score, _ = gan.eval()
-                        print("Worker {} with Inception Score {}".format(FLAGS.task_index, inception_score))
-
-                        do_explore = gan.exploit(worker_idx=FLAGS.task_index, score=inception_score)
-
-                        if do_explore:
-                            gan.explore(FLAGS.task_index)
-        #                            inception_score, _ = gan.eval()
-        #                            print("Worker {} with Inception Score {}".format(FLAGS.task_index, inception_score))
-
+#                    # inception score takes ~5s, so there is a tradeoff
+#                    if counter % ready_freq == 0:
+#                        inception_score, _ = gan.eval()
+#                        print("Worker {} with Inception Score {}".format(i, inception_score))
+#
+#                        do_explore = gan.exploit(worker_idx=i, score=inception_score)
+#
+#                        if do_explore:
+#                            gan.explore(i)
+#        #                            inception_score, _ = gan.eval()
+#        #                            print("Worker {} with Inception Score {}".format(FLAGS.task_index, inception_score))
+#
                     if counter % update_freq == 0:
                         # update checkpoint (ideally checkpoint every idx)
                         inception_score, _ = gan.eval()
-                        gan.save(worker_idx=FLAGS.task_index, score=inception_score)
-                        print("Worker {} with Inception Score {}".format(FLAGS.task_index, inception_score))
+                        gan.save(worker_idx=i, score=inception_score)
+                        print("Worker {} with Inception Score {}".format(i, inception_score))
+
 
 
 if __name__ == "__main__":

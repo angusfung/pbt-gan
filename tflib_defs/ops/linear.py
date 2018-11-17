@@ -35,7 +35,6 @@ def Linear(
     """
     initialization: None, `lecun`, 'glorot', `he`, 'glorot_he', `orthogonal`, `("uniform", range)`
     """
-    print(name)
     with tf.name_scope(name) as scope:
 
         def uniform(stdev, size):

@@ -162,7 +162,7 @@ class GAN(object):
         gen_list = lib.params_with_name(gen_reg, regex=True)
 
         disc_reg = 'Discriminator.*{}$'.format(self.worker_idx)
-        disc_list = lib.params_with_name(gen_reg, regex=True)
+        disc_list = lib.params_with_name(disc_reg, regex=True)
 
         self.g_optim = tf.train.AdamOptimizer(self.learning_rate_G, beta1=0.5).minimize(self.g_loss, var_list=gen_list)
         self.d_optim = tf.train.AdamOptimizer(self.learning_rate_D, beta1=0.5).minimize(self.d_loss, var_list=disc_list)
@@ -366,6 +366,12 @@ class GAN(object):
         if not os.path.exists(worker_dir):
             os.makedirs(worker_dir)
 
+        # to save it properly, we have to remove the worker_idx from the var name
+        # this allows other workers to inherit it
+
+        worker_regex = '.*{}$'.format(worker_idx)
+        var_list = lib.params_rename(worker_idx, worker_regex)
+
         name = '{}_{}_{}.model'.format(worker_idx, score, self.counter)
         self.saver.save(self.get_session(), os.path.join(worker_dir, name))
 
@@ -410,6 +416,16 @@ class GAN(object):
             print("Could not find checkpoint")
 
         return epoch, idx
+
+#    def rename(self):
+#        # modified from gist.github.com/batzner/7c24802dd9c5e15870b4b56e22135c96rint(var_list)
+#
+#        worker_dir = os.path.join(self.checkpoint_dir, str(self.worker_idx))
+#        ckpt = tf.train_get_checkpoint_state(worker_dir)
+#        with tf.Session() as sess:
+#            for var_name, _ in tf.contrib.framework.list_variables(self.checkpoint_dir):
+#                # load the variable
+#                var = tf.contrib.framework.load_variable(ckpt,  
 
     def generate_image(self, frame, true_dist):
         samples = self.mon_sess.run(self.fake_images)

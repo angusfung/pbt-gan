@@ -42,9 +42,17 @@ def params_with_name(name, regex=False):
         for n,p in _params.items():
             if re.match(name,n):
                 params.append(p)
-
     return params 
                 
+def params_rename(worker_idx, regex):
+    # remove worker_idx from the param names
+    regex = re.compile("(.*){}$".format(worker_idx))
+    var_list = {}
+    for n,p in _params.items():
+        if re.match(regex,n):
+            name = regex.match(n).group(1) + '1'
+            var_list[name] = p
+    return var_list
 
 def delete_all_params():
     _params.clear()
