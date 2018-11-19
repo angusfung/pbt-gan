@@ -60,7 +60,8 @@ def main(_):
 
             gan.build_model()
 
-            gan.mon_sess.run(tf.initialize_all_variables())
+            gan.mon_sess.run(tf.global_variables_initializer())
+
 
             # use filesystem for population
             gan.saver = tf.train.Saver(max_to_keep=1)
@@ -103,18 +104,18 @@ def main(_):
                     else:
                         gan.step(idx, epoch, verbose=False)
 
-#                    # inception score takes ~5s, so there is a tradeoff
-#                    if counter % ready_freq == 0:
-#                        inception_score, _ = gan.eval()
-#                        print("Worker {} with Inception Score {}".format(i, inception_score))
-#
-#                        do_explore = gan.exploit(worker_idx=i, score=inception_score)
-#
-#                        if do_explore:
-#                            gan.explore(i)
-#        #                            inception_score, _ = gan.eval()
-#        #                            print("Worker {} with Inception Score {}".format(FLAGS.task_index, inception_score))
-#
+                    # inception score takes ~5s, so there is a tradeoff
+                    if counter % ready_freq == 0:
+                        inception_score, _ = gan.eval()
+                        print("Worker {} with Inception Score {}".format(i, inception_score))
+
+                        do_explore = gan.exploit(worker_idx=i, score=inception_score)
+
+                        if do_explore:
+                            gan.explore(i)
+#                            inception_score, _ = gan.eval()
+#                            print("Worker {} with Inception Score {}".format(FLAGS.task_index, inception_score))
+
                     if counter % update_freq == 0:
                         # update checkpoint (ideally checkpoint every idx)
                         inception_score, _ = gan.eval()

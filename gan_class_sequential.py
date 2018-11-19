@@ -158,10 +158,10 @@ class GAN(object):
         d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=D_real, labels=tf.ones_like(D_real)))
         self.d_loss = (d_loss_real + d_loss_fake) / 2.
 
-        gen_reg = 'Generator.*{}$'.format(self.worker_idx)
+        gen_reg = 'Generator.*_w{}$'.format(self.worker_idx)
         gen_list = lib.params_with_name(gen_reg, regex=True)
 
-        disc_reg = 'Discriminator.*{}$'.format(self.worker_idx)
+        disc_reg = 'Discriminator.*_w{}$'.format(self.worker_idx)
         disc_list = lib.params_with_name(disc_reg, regex=True)
 
         self.g_optim = tf.train.AdamOptimizer(self.learning_rate_G, beta1=0.5).minimize(self.g_loss, var_list=gen_list)
@@ -366,12 +366,6 @@ class GAN(object):
         if not os.path.exists(worker_dir):
             os.makedirs(worker_dir)
 
-        # to save it properly, we have to remove the worker_idx from the var name
-        # this allows other workers to inherit it
-
-        worker_regex = '.*{}$'.format(worker_idx)
-        var_list = lib.params_rename(worker_idx, worker_regex)
-
         name = '{}_{}_{}.model'.format(worker_idx, score, self.counter)
         self.saver.save(self.get_session(), os.path.join(worker_dir, name))
 
@@ -386,13 +380,14 @@ class GAN(object):
         ckpt = tf.train.get_checkpoint_state(worker_dir)
         if ckpt and ckpt.model_checkpoint_path:
             ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
+
+            self.rename(desired_idx=worker_idx)
             self.saver.restore(self.mon_sess, os.path.join(worker_dir, ckpt_name))
             print("Successfully loaded checkpoint from Worker {}!".format(worker_idx))
         else:
             print("Could not find checkpoint")
 
     def load_saved_session(self):
-        print("Loading Initial Checkpoints...") 
         epoch = 0
         idx = 0
 
@@ -401,8 +396,10 @@ class GAN(object):
 
         if ckpt and ckpt.model_checkpoint_path:
             ckpt_name = os.path.basename(ckpt.model_checkpoint_path)
-            self.saver.restore(self.mon_sess, os.path.join(worker_dir, ckpt_name))
 
+            # append worker_idx to the name of all the vars
+            self.rename()
+            self.saver.restore(self.mon_sess, os.path.join(worker_dir, ckpt_name))
 
             regex = re.compile('(\d+)_(\d*\.?\d*)_(\d+)')
             counter = int(regex.match(ckpt_name).group(3))
@@ -417,15 +414,42 @@ class GAN(object):
 
         return epoch, idx
 
-#    def rename(self):
-#        # modified from gist.github.com/batzner/7c24802dd9c5e15870b4b56e22135c96rint(var_list)
-#
-#        worker_dir = os.path.join(self.checkpoint_dir, str(self.worker_idx))
-#        ckpt = tf.train_get_checkpoint_state(worker_dir)
-#        with tf.Session() as sess:
-#            for var_name, _ in tf.contrib.framework.list_variables(self.checkpoint_dir):
-#                # load the variable
-#                var = tf.contrib.framework.load_variable(ckpt,  
+    def rename(self, desired_idx=-1):
+        # modified from gist.github.com/batzner/7c24802dd9c5e15870b4b56e22135c96rint(var_list)
+        # append worker_idx to all the vars (worker_idx is the worker inheriting these vars)
+
+        if desired_idx == -1: # e.g when called from load_saved_session() 
+            desired_idx = self.worker_idx
+
+        worker_dir = os.path.join(self.checkpoint_dir, str(desired_idx))
+
+        ckpt = tf.train.get_checkpoint_state(worker_dir)
+
+        # create a temp graph to avoid variable name collision
+        # the purpose of this graph is just to load the saved session, rename, and resave it
+        with tf.Graph().as_default():
+
+            with tf.Session() as new_sess:
+
+                # iterate over all variables in the specifed checkpoint location
+                for var_name, _ in tf.contrib.framework.list_variables(worker_dir):
+                    
+                    # load the variable
+                    var = tf.contrib.framework.load_variable(worker_dir, var_name)
+
+                    # append the worker idx to var name so we can reuse another worker's parameters
+                    worker_regex =  re.compile('(.*)_w\d+(.*)') #re.compile('(.*)_w\d+$')
+                    m = re.match(worker_regex, var_name)
+                    if m:
+                        new_name = m.group(1) + '_w{}'.format(self.worker_idx) + m.group(2)
+                    else:
+                        new_name = var_name
+
+                    var = tf.Variable(var, name=new_name)
+                saver = tf.train.Saver()
+                new_sess.run(tf.global_variables_initializer())
+                saver.save(new_sess, ckpt.model_checkpoint_path)
+
 
     def generate_image(self, frame, true_dist):
         samples = self.mon_sess.run(self.fake_images)
@@ -442,7 +466,7 @@ class GAN(object):
         all_samples = np.concatenate(all_samples, axis=0)
         all_samples = ((all_samples+1.)*(255./2)).astype('int32')
         all_samples = all_samples.reshape((-1, 3, 32, 32)).transpose(0,2,3,1)
-        return get_inception_score(self, list(all_samples))#lib.inception_score.get_inception_score(list(all_samples))
+        return get_inception_score(self, list(all_samples)) #lib.inception_score.get_inception_score(list(all_samples))
 
     def get_session(self):
         """
