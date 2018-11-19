@@ -70,7 +70,7 @@ def main(_):
             start_epoch, start_idx = gan.load_saved_session()
 
             # log each worker separately for tensorboard
-            gan.writer = tf.summary.FileWriter(os.path.join(gan.log_dir, str(FLAGS.task_index)), tf.get_default_graph()) 
+            gan.writer = tf.summary.FileWriter(os.path.join(gan.log_dir, str(i)), tf.get_default_graph()) 
 
             # show all variables
             show_all_variables()
