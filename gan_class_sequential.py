@@ -35,7 +35,7 @@ def LeakyReLULayer(name, n_in, n_out, inputs):
 class GAN(object):
     model_name = "GAN"     # name for checkpoint
 
-    def __init__(self, worker_idx=-1, batch_size=64, z_dim=128, epochs=100):
+    def __init__(self, worker_idx=-1, batch_size=64, z_dim=128, epochs=100, data_X=None, data_y=None):
         self.worker_idx = worker_idx
         self.batch_size = batch_size
         self.z_dim = z_dim
@@ -71,9 +71,10 @@ class GAN(object):
         # test
         self.sample_num = 64  # number of generated images to be saved
 
-        # load cifar10
-        self.data_X, self.data_y = load_cifar10('cifar10', preprocessing=False)
-        self.data_X = np.reshape(self.data_X, [-1, 32*32*3])
+#        # load cifar10 (for sequential, load it outside)
+#        self.data_X, self.data_y = load_cifar10('cifar10', preprocessing=False)
+#        self.data_X = np.reshape(self.data_X, [-1, 32*32*3])
+        self.data_X, self.data_y = data_X, data_y
         print("Shape of cifar10 X: {}".format(self.data_X.shape))
         print("Shape of cifar10 Y: {}".format(self.data_y.shape))
 

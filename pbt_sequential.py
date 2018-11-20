@@ -35,7 +35,7 @@ def main(_):
     lib.print_model_settings(locals().copy())
     gpu_options = tf.GPUOptions(allow_growth=True)
 
-    num_workers = 2
+    num_workers = 20
     graph_list = []
     sess_list = []
     gan_list = []
@@ -47,7 +47,10 @@ def main(_):
         with tf.Session(graph=graph, config=tf.ConfigProto(gpu_options=gpu_options, allow_soft_placement=True)) as mon_sess:
             sess_list.append(mon_sess)
 
+    # load the dataset once
 
+    data_X, data_y = load_cifar10('cifar10', preprocessing=False)
+    data_X = np.reshape(data_X, [-1, 32*32*3])
         
     for i in range(num_workers):
         graph = graph_list[i]
@@ -55,7 +58,7 @@ def main(_):
         with graph.as_default():
             mon_sess = sess_list[i]
 
-            gan = GAN(worker_idx=i, epochs=200)
+            gan = GAN(worker_idx=i, epochs=200, data_X=data_X, data_y=data_y)
             gan.mon_sess = mon_sess
 
             gan.build_model()
