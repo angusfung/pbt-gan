@@ -107,7 +107,7 @@ def Linear(
         weight_values *= gain
 
         weight = lib.param(
-            name + '.W{}'.format(self.worker_idx),
+            name + '.W_w{}'.format(self.worker_idx),
             weight_values
         )
 
@@ -118,7 +118,7 @@ def Linear(
             # norm_values = np.linalg.norm(weight_values, axis=0)
 
             target_norms = lib.param(
-                name + '.g{}'.format(self.worker_idx),
+                name + '.g_w{}'.format(self.worker_idx),
                 norm_values
             )
 
@@ -141,7 +141,7 @@ def Linear(
             result = tf.nn.bias_add(
                 result,
                 lib.param(
-                    name + '.b{}'.format(self.worker_idx),
+                    name + '.b_w{}'.format(self.worker_idx),
                     np.zeros((output_dim,), dtype='float32')
                 )
             )

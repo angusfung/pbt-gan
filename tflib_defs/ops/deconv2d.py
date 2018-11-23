@@ -70,7 +70,7 @@ def Deconv2D(
         filter_values *= gain
 
         filters = lib.param(
-            name+'.Filters{}'.format(self.worker_idx),
+            name+'.Filters_w{}'.format(self.worker_idx),
             filter_values
         )
 
@@ -79,7 +79,7 @@ def Deconv2D(
         if weightnorm:
             norm_values = np.sqrt(np.sum(np.square(filter_values), axis=(0,1,3)))
             target_norms = lib.param(
-                name + '.g{}'.format(self.worker_idx),
+                name + '.g_w{}'.format(self.worker_idx),
                 norm_values
             )
             with tf.name_scope('weightnorm') as scope:
@@ -105,7 +105,7 @@ def Deconv2D(
 
         if biases:
             _biases = lib.param(
-                name+'.Biases{}'.format(self.worker_idx),
+                name+'.Biases_w{}'.format(self.worker_idx),
                 np.zeros(output_dim, dtype='float32')
             )
             result = tf.nn.bias_add(result, _biases)
