@@ -17,13 +17,14 @@ source pbt_env/bin/activate.csh
 pip install -r requirements.txt
 ```
 ## Memory Utilization
-Memory limits can be set on a per-worker basis (as a percentage) by uncommenting `gpu_options` in `pbt_main.py` which can be desired for synchronous training.
+Memory limits can be set per-worker (as a percentage) by uncommenting `gpu_options` in `pbt_main.py` which can be desired for synchronous training.
  
 ## Training
 ### Asynchronous Training
 `python pbt_main.py --ps_hosts=localhost:2222 --worker_hosts=localhost:2223,localhost:2224,localhost:2225,localhost:2226 --job_name=ps --task_index=0`
-`python pbt_main.py --ps_hosts=localhost:2222 --worker_hosts=localhost:2223,localhost:2224,localhost:2225,localhost:2226 --job_name=worker --task_index=0`
+`python pbt_main.py --ps_hosts=localhost:2222 --worker_hosts=localhost:2223,localhost:2224,localhost:2225,localhost:2226 --job_name=worker --task_index=0`  
 ...
+  
 ### Synchronous Training
 `python pbt_sequential.py`
 
