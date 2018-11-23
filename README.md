@@ -30,7 +30,7 @@ Memory limits can be set on a per-worker basis (as a percentage) by uncommenting
 ## Results
 Results for synchronous training with `20` workers.
   
-## Inception Plots
+### Inception Plots
 
 Left is PBT with 20 workers. Right compares PBT with no-PBT (grey color).  
 Note that PBT significantly outperforms the baseline (no PBT) by about a 0.5 inception score.
@@ -42,6 +42,11 @@ Blue (with PBT), Grey (no PBT)
 
 ![alt-text-3](https://github.com/angusfung/pbt-gan/blob/master/results/inception2.PNG "title-3") ![alt-text-4](https://github.com/angusfung/pbt-gan/blob/master/results/inception_nosmooth.PNG "title-4")
 
+### Learning Rates
+
+Learning schedules discovered by PBT
+
+![alt-text-3](https://github.com/angusfung/pbt-gan/blob/master/results/d_learning.PNG "title-3") ![alt-text-4](https://github.com/angusfung/pbt-gan/blob/master/results/g_learning.PNG "title-4")
 
 ## Saved Sessions
 The code will automatically restore from a previous save-point under `./checkpoint` if exists. Tensorboard files are stored under `./logs`. Images are stored under `./images`. Pretrained model / checkpoint for 1 worker is provided under `./checkpoint`. Unfortunately due to space limitations, tensorboard logs are not provided.
