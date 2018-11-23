@@ -18,12 +18,22 @@ pip install -r requirements.txt
 ```
 ## Memory Utilization
 Memory limits can be set on a per-worker basis (as a percentage) by uncommenting `gpu_options` in `pbt_main.py` which can be desired for synchronous training.
-
+ 
 ## Training
+### Asynchronous Training
+`python pbt_main.py --ps_hosts=localhost:2222 --worker_hosts=localhost:2223,localhost:2224,localhost:2225,localhost:2226 --job_name=ps --task_index=0`
+`python pbt_main.py --ps_hosts=localhost:2222 --worker_hosts=localhost:2223,localhost:2224,localhost:2225,localhost:2226 --job_name=worker --task_index=0`
+...
+### Synchronous Training
+`python pbt_sequential.py`
 
 ## Results
+Results for synchronous training with `20` workers.
+
 
 ## Saved Sessions
+The code will automatically restore from a previous save-point under `./checkpoint` if exists. Tensorboard files are stored under `./logs`. Images are stored under `./images`. Pretrained model / checkpoint for 1 worker is provided under `./checkpoint`. Unfortunately due to space limitations, tensorboard logs are not provided.
+
 
 ## Credits
 GAN templates from [here](https://github.com/hwalsuklee/tensorflow-generative-model-collections) and [here](https://github.com/igul222/improved_wgan_training)
