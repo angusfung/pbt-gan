@@ -49,7 +49,7 @@ Learning schedules discovered by PBT
 ![alt-text-3](https://github.com/angusfung/pbt-gan/blob/master/results/d_learning.PNG "title-3") ![alt-text-4](https://github.com/angusfung/pbt-gan/blob/master/results/g_learning.PNG "title-4")
 
 ## Saved Sessions
-The code will automatically restore from a previous save-point under `./checkpoint` if exists. Tensorboard files are stored under `./logs`. Images are stored under `./images`. Pretrained model / checkpoint for 1 worker is provided under `./checkpoint`. Unfortunately due to space limitations, tensorboard logs are not provided.
+The code will automatically restore from a previous save-point under `./checkpoint` if exists. Tensorboard files are stored under `./logs`. Images are stored under `./images`. Pretrained model / checkpoint for 1 worker is provided under `./checkpoint`. Unfortunately due to space limitations, tensorboard logs could not be uploaded.
 
 
 ## Credits
