@@ -71,13 +71,15 @@ class GAN(object):
         # test
         self.sample_num = 64  # number of generated images to be saved
 
-        # load cifar10
-        self.data_X, self.data_y = load_cifar10('cifar10', preprocessing=False)
-        self.data_X = np.reshape(self.data_X, [-1, 32*32*3])
-        print("Shape of cifar10 X: {}".format(self.data_X.shape))
-        print("Shape of cifar10 Y: {}".format(self.data_y.shape))
+#        # load cifar10
+#        self.data_X, self.data_y = load_cifar10('cifar10', preprocessing=False)
+#        self.data_X = np.reshape(self.data_X, [-1, 32*32*3])
+#        print("Shape of cifar10 X: {}".format(self.data_X.shape))
+#        print("Shape of cifar10 Y: {}".format(self.data_y.shape))
 
         DATA_DIR = 'dataset/cifar-10-batches-py'
+        DATA_SIZE = 60000
+
         self.train_gen, self.dev_gen = lib.cifar10.load(self.batch_size, data_dir=DATA_DIR)
         def inf_train_gen():
             while True:
@@ -87,7 +89,7 @@ class GAN(object):
         self.gen = inf_train_gen()
 
         # get number of batches for a single epoch
-        self.num_batches = len(self.data_X) // self.batch_size
+        self.num_batches = DATA_SIZE // self.batch_size
 
 #        # load pretrained inception network (code from tensorflow / openAI)
         self.init_inception()
