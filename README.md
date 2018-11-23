@@ -29,10 +29,12 @@ Memory limits can be set on a per-worker basis (as a percentage) by uncommenting
 
 ## Results
 Results for synchronous training with `20` workers.
+  
 ## Inception Plots
 
+![alt-text-1](https://github.com/angusfung/pbt-gan/blob/master/results/inception1.PNG "title-1")
 
-
+![alt-text-2](https://github.com/angusfung/pbt-gan/blob/master/results/inception3.PNG "title-2") ![alt-text-3](https://github.com/angusfung/pbt-gan/blob/master/results/inception2.PNG "title-3") ![alt-text-4](https://github.com/angusfung/pbt-gan/blob/master/results/inception_nosmooth.PNG "title-4")
 
 
 ## Saved Sessions
