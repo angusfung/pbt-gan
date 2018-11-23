@@ -5,8 +5,8 @@ PBT is an optimization algorithm that maximizes the performance of a network by 
 Implementation of PBT-GAN experiments from [paper](https://arxiv.org/pdf/1711.09846.pdf).  
 (Refer [here](https://github.com/angusfung/population-based-training) for Toy Experiments from paper)
 
-![alt-text-1](https://github.com/angusfung/pbt-gan/blob/master/images/18/samples_47099.jpg "title-1") ![alt-text-2](https://github.com/angusfung/pbt-gan/blob/master/images/0/samples_47799.jpg "title-2")
-  
+![alt-text-1](https://github.com/angusfung/pbt-gan/blob/master/images/18/samples_47099.jpg "title-1") ![alt-text-2](https://github.com/angusfung/pbt-gan/blob/master/images/0/samples_47799.jpg "title-2") ![alt-text-1](https://github.com/angusfung/pbt-gan/blob/master/images/13/samples_47399.jpg "title-3")
+ 
 
 ## Setup
 It is recommended to run from a virtual environment to ensure all dependencies are met.  
