@@ -32,9 +32,13 @@ Results for synchronous training with `20` workers.
   
 ## Inception Plots
 
-### Left: PBT w/ 20 Workers compared with Baseline (GREY)
+Left is PBT with 20 workers. Right compares PBT with no-PBT (grey color).  
+Note that PBT significantly outperforms the baseline (no PBT) by about a 0.5 inception score.
+
 ![alt-text-1](https://github.com/angusfung/pbt-gan/blob/master/results/inception1.PNG "title-1") ![alt-text-2](https://github.com/angusfung/pbt-gan/blob/master/results/inception3.PNG "title-2") 
 
+Left (smoothed plot). Right (raw plot).
+Blue (with PBT), Grey (no PBT)
 ![alt-text-3](https://github.com/angusfung/pbt-gan/blob/master/results/inception2.PNG "title-3") ![alt-text-4](https://github.com/angusfung/pbt-gan/blob/master/results/inception_nosmooth.PNG "title-4")
 
 
