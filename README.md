@@ -29,6 +29,10 @@ Memory limits can be set on a per-worker basis (as a percentage) by uncommenting
 
 ## Results
 Results for synchronous training with `20` workers.
+## Inception Plots
+
+
+
 
 
 ## Saved Sessions
